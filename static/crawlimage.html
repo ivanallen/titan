@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>crawlimage</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+    <!--<script src="https://cdn.staticfile.org/jquery/2.1.1/jquery.min.js"></script>-->
+    <!--<script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>-->
+    <script src="/assets/js/multipart.js" type="text/javascript"></script>
+</head>
+
+<body class="post-template tag-foreign-website tag-bootstrap-v3">
+<main class="main" role="main">
+<div class="container">
+    <div style="height:20px">
+    </div>
+</div>
+<div class="container">
+    <div class="row">
+        <div class="col-xs-12">
+        <form>
+            <div class="form-group">
+                <input id="seed" class="form-control" type="text" name="seed" placeholder="这里填写你的种子 URL，如 https://logo-tank.net" value="">
+            </div>
+            <div class="form-group">
+                <input id="pattern" class="form-control" type="text" name="pattern" placeholder="这里填写匹配 URL 的模式，如 https://logo-tank\.net(\?page=.*)?$" value="">
+            </div>
+            <div class="progress progress-striped ">
+                <div id="downloadprogress" class="progress-bar progress-bar-success progress-bar-animated" role="progressbar" aria-valuenow="60"
+                    aria-valuemin="0" aria-valuemax="100" style="width: 0%;">
+                    <span id="progresstext" class="sr">0/0</span>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-4 col-xs-offset-4">
+                <button id='start' class='btn btn-primary btn-lg btn-block' value='start'>开始</button>
+                </div>
+            </div>
+        </form>
+        </div>
+    </div>
+</div>
+</main>
+    <script>
+        document.querySelector('form').addEventListener('submit', function (e) {
+            e.preventDefault();
+        });
+        document.querySelector('#start').addEventListener('click', function (e) {
+            var btn = document.getElementById('start');
+            if (btn.value === 'start')  {
+                btn.innerHTML = '取消';
+                btn.value = 'cancel';
+                start();
+            } else if (btn.value === 'cancel') {
+                console.log('cancel');
+                btn.value = 'start';
+            } else if (btn.value === 'download') {
+                console.log('download');
+                btn.value = 'start';
+
+            }
+        }, false);
+    
+        function start() {
+            var opts = {
+                seed: document.querySelector('#seed').value,
+                pattern: document.querySelector('#pattern').value,
+            };
+            console.log(opts);
+            var multipart = new Multipart();
+            document.getElementById("downloadprogress").className += ' active';
+
+            multipart.on('data', function(headers, body) {
+                body = JSON.parse(body);
+                document.getElementById("downloadprogress").style.width = Math.floor(body.index/body.total * 100) + '%';
+                document.getElementById("progresstext").innerHTML = body.index + '/' + body.total;
+            });
+            multipart.on('end', function(body) {
+                console.log(body);
+                document.getElementById("downloadprogress").className = 'progress-bar progress-bar-success progress-bar-animated';
+
+                var btn = document.getElementById('start');
+                btn.innerHTML = '下载';
+            });
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/crawlimage", true);
+            //xhr.responseType = 'text';
+            xhr.setRequestHeader("Content-Type", 'application/json');
+            xhr.seenBytes = 0;
+            xhr.onreadystatechange = function() {
+                if(xhr.readyState == 2) {
+                    var contentType = xhr.getResponseHeader("Content-Type");
+                    console.log('content-type:' + contentType);
+                    var val = contentType.split(';');
+                    var boundary = val[1].split('=')[1].trim();
+                    console.log('boundary:' + boundary);
+                    multipart.setBoundary(boundary);
+
+                }
+                if(xhr.readyState > 2) {
+                    var newData = xhr.responseText.substr(xhr.seenBytes); // 2
+                    xhr.seenBytes = xhr.responseText.length; // 3
+                    multipart.write(newData);
+                }
+            }
+            xhr.send(JSON.stringify(opts));
+        }
+    </script>
+</body>
+</html>
+

@@ -54,12 +54,12 @@ func main() {
 			log.Print("Damn, no flush")
 		}
 
-		crawlImage(&opts, func(img string, index int32, total int32) error {
+		crawlImage(&opts, func(imgInfo *crawler.ImageInfo, index int32, total int32) error {
 			part, err := multipartWriter.CreatePart(header)
 			if err != nil {
 				return err
 			}
-			report := fmt.Sprintf(`{"img":"%s", "index":%d, "total":%d}`, img, index, total)
+			report := fmt.Sprintf(`{"img":"%s", "from":"%s", "index":%d, "total":%d}`, imgInfo.ImageURL, imgInfo.FromURL, index, total)
 			part.Write([]byte(report))
 			log.Printf("report:%v", report)
 
@@ -75,7 +75,7 @@ func main() {
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
 
-func crawlImage(opts *CrawlImageOption, report func(string, int32, int32) error) {
+func crawlImage(opts *CrawlImageOption, report func(*crawler.ImageInfo, int32, int32) error) {
 
 	dirname := "./tmp"
 
@@ -87,8 +87,8 @@ func crawlImage(opts *CrawlImageOption, report func(string, int32, int32) error)
 	}
 
 	var processedCount int32
-	crawler.ImageCrawl(opts.Seed, opts.Pattern, func(img string, totalCount int32) error {
-		downloader.Download(img, dirname)
+	crawler.ImageCrawl(opts.Seed, opts.Pattern, func(img *crawler.ImageInfo, totalCount int32) error {
+		downloader.Download(img.ImageURL, dirname)
 		processedCount += 1
 		if err := report(img, processedCount, totalCount); err != nil {
 			return err

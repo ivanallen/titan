@@ -14,6 +14,13 @@ import (
 
 // Create the Extender implementation, based on the gocrawl-provided DefaultExtender,
 // because we don't want/need to override all methods.
+
+type CrawlImageOption struct {
+	Seed      string `json:"seed" binding:"required"`
+	Pattern   string `json:"pattern" binding:"required"`
+	MaxVisits int32  `json:"max_visits"`
+}
+
 type ImageInfo struct {
 	ImageURL string // 图片地址
 	FromURL  string // 图片来源
@@ -38,6 +45,7 @@ func (x *ExampleExtender) Visit(ctx *gocrawl.URLContext, res *http.Response, doc
 				val = ctx.NormalizedURL().Scheme + "://" + ctx.NormalizedURL().Host + "/" + val
 			}
 			if _, ok := x.Images[val]; ok {
+				log.Printf("repeated, ignore:" + val)
 				return
 			}
 			x.Images[val] = struct{}{}
@@ -56,17 +64,21 @@ func (x *ExampleExtender) Visit(ctx *gocrawl.URLContext, res *http.Response, doc
 
 // Override Filter for our need.
 func (x *ExampleExtender) Filter(ctx *gocrawl.URLContext, isVisited bool) bool {
+	log.Printf("URL:%s", ctx.URL())
+	log.Printf("NormalizedURL:%s", ctx.NormalizedURL())
+	log.Printf("SourceURL:%s", ctx.SourceURL())
+	log.Printf("NormalizedSourceURL:%s", ctx.NormalizedSourceURL())
 	return !isVisited && x.URLPattern.MatchString(ctx.NormalizedURL().String())
 }
 
-func ImageCrawl(seed string, urlPattern string, cb func(*ImageInfo, int32) error) {
+func ImageCrawl(imgOpts *CrawlImageOption, cb func(*ImageInfo, int32) error) {
 	imageCh := make(chan *ImageInfo, 100)
 	// Set custom options
 	extender := new(ExampleExtender)
 	extender.ImageCh = imageCh
 	extender.Images = make(map[string]struct{})
 	// Only enqueue the root and paths beginning with an "a"
-	extender.URLPattern = regexp.MustCompile(urlPattern)
+	extender.URLPattern = regexp.MustCompile(imgOpts.Pattern)
 	opts := gocrawl.NewOptions(extender)
 
 	// should always set your robot name so that it looks for the most
@@ -80,7 +92,12 @@ func ImageCrawl(seed string, urlPattern string, cb func(*ImageInfo, int32) error
 	opts.LogFlags = gocrawl.LogAll
 
 	// Play nice with ddgo when running the test!
-	opts.MaxVisits = 10
+	opts.MaxVisits = 1
+
+	if imgOpts.MaxVisits != 0 {
+		opts.MaxVisits = int(imgOpts.MaxVisits)
+
+	}
 
 	// Create crawler and start at root of duckduckgo
 	c := gocrawl.NewCrawlerWithOptions(opts)
@@ -98,7 +115,7 @@ func ImageCrawl(seed string, urlPattern string, cb func(*ImageInfo, int32) error
 		wg.Done()
 	}()
 
-	c.Run(seed)
+	c.Run(imgOpts.Seed)
 	close(imageCh)
 
 	wg.Wait()

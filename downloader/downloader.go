@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-func Download(url string, dirname string) error {
+// 有些网站没有 referer 是无法下载的。
+func Download(url string, referer string, dirname string) error {
 	parts := strings.Split(url, "/")
 	fileName := parts[len(parts)-1]
 
@@ -17,7 +18,16 @@ func Download(url string, dirname string) error {
 	}
 
 	defer f.Close()
-	res, err := http.Get(url)
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Referer", referer)
+
+	res, err := client.Do(req)
 	if err != nil {
 		return err
 	}

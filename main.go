@@ -8,15 +8,10 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
-	"tools/archiver"
-	"tools/crawler"
-	"tools/downloader"
+	"webtools/archiver"
+	"webtools/crawler"
+	"webtools/downloader"
 )
-
-type CrawlImageOption struct {
-	Seed    string `json:"seed" binding:"required"`
-	Pattern string `json:"pattern" binding:"required"`
-}
 
 func main() {
 	r := gin.Default()
@@ -27,8 +22,9 @@ func main() {
 	})
 	r.Static("/static", "./static")
 	r.Static("/assets", "./assets")
+	r.Static("/resource", "./resource")
 	r.POST("/crawlimage", func(c *gin.Context) {
-		var opts CrawlImageOption
+		var opts crawler.CrawlImageOption
 		if err := c.ShouldBindJSON(&opts); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -75,9 +71,9 @@ func main() {
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
 
-func crawlImage(opts *CrawlImageOption, report func(*crawler.ImageInfo, int32, int32) error) {
+func crawlImage(opts *crawler.CrawlImageOption, report func(*crawler.ImageInfo, int32, int32) error) {
 
-	dirname := "./tmp"
+	dirname := "tmp"
 
 	if _, err := os.Stat(dirname); os.IsNotExist(err) {
 		os.Mkdir(dirname, 0755)
@@ -87,8 +83,8 @@ func crawlImage(opts *CrawlImageOption, report func(*crawler.ImageInfo, int32, i
 	}
 
 	var processedCount int32
-	crawler.ImageCrawl(opts.Seed, opts.Pattern, func(img *crawler.ImageInfo, totalCount int32) error {
-		downloader.Download(img.ImageURL, dirname)
+	crawler.ImageCrawl(opts, func(img *crawler.ImageInfo, totalCount int32) error {
+		downloader.Download(img.ImageURL, img.FromURL, dirname)
 		processedCount += 1
 		if err := report(img, processedCount, totalCount); err != nil {
 			return err
@@ -96,11 +92,11 @@ func crawlImage(opts *CrawlImageOption, report func(*crawler.ImageInfo, int32, i
 		return nil
 	})
 
-	if _, err := os.OpenFile(dirname+".zip", os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600); os.IsExist(err) {
-		os.Remove(dirname + ".zip")
+	if _, err := os.OpenFile("./resource/"+dirname+".zip", os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600); os.IsExist(err) {
+		os.Remove("./resource/" + dirname + ".zip")
 	}
 
-	err := archiver.Zip(dirname, dirname+".zip")
+	err := archiver.Zip(dirname, "./resource/"+dirname+".zip")
 	if err != nil {
 		log.Printf("zip failed:%v", err)
 	}

@@ -38,6 +38,10 @@ func (x *ExampleExtender) Visit(ctx *gocrawl.URLContext, res *http.Response, doc
 	// Use the goquery document or res.Body to manipulate the data
 	// ...
 
+	if ctx == nil || res == nil || doc == nil {
+		log.Printf("ctx, res or doc is nil")
+		return nil, true
+	}
 	log.Printf("visit:%s", ctx.URL())
 	doc.Find("img").Each(func(i int, s *goquery.Selection) {
 		if val := s.AttrOr("src", ""); val != "alternative" {

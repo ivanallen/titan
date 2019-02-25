@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
-	"webtools/archiver"
-	"webtools/crawler"
-	"webtools/downloader"
+	"titan/archiver"
+	"titan/crawler"
+	"titan/downloader"
 )
 
 func main() {
